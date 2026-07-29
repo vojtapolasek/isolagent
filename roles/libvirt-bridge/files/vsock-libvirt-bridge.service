@@ -1,0 +1,12 @@
+[Unit]
+Description=vsock-to-TCP bridge for libvirt
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:16509,bind=127.0.0.1,reuseaddr,fork VSOCK-CONNECT:2:16509
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,51 @@
+[project]
+name = "isolagent"
+version = "0.1.0"
+description = "Run fully autonomous LLM agents in isolated sandbox"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Vojtech Polasek", email = "krecoun@gmail.com"},
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+    "libvirt-python>=10.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/vojtapolasek/isolagent"
+Repository = "https://github.com/vojtapolasek/isolagent"
+Issues = "https://github.com/vojtapolasek/isolagent/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.11",
+]
+
+[project.scripts]
+isolagent = "isolagent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["isolagent*"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH"]
+
+[tool.pytest.ini_options]
+addopts = "-m 'not integration and not slow'"
+testpaths = ["tests"]
+markers = [
+    "integration: requires libvirt, ansible, and KVM (deselect with '-m \"not integration\"')",
+    "slow: nested VM packet flow tests (deselect with '-m \"not slow\"')",
+]

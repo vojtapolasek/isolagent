@@ -1,0 +1,12 @@
+---
+- name: Install vsock-libvirt-bridge service unit
+  ansible.builtin.copy:
+    src: vsock-libvirt-bridge.service
+    dest: /etc/systemd/system/vsock-libvirt-bridge.service
+    mode: "0644"
+
+- name: Ensure vsock-libvirt-bridge is disabled by default
+  ansible.builtin.systemd:
+    name: vsock-libvirt-bridge
+    enabled: false
+    daemon_reload: true

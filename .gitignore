@@ -1,0 +1,25 @@
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+*.pyc
+.ruff_cache/
+
+# Local development tooling
+.claude/
+.superpowers/
+.mcp.json
+
+# litellm local config (see docs/litellm.md for setup)
+litellm_config.yaml
+litellm.env
+litellm.service
+
+# OpenSpec workflow state (specs/ is committed, these are local)
+openspec/config.yaml
+
+# Profiles — only ship opencode-quickstart, reference, and test
+profiles/*
+!profiles/opencode-quickstart/
+!profiles/reference/
+!profiles/test/

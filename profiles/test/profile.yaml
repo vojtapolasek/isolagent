@@ -1,0 +1,21 @@
+name: test
+
+image:
+  os: fedora
+  roles:
+    - agent-test
+
+agent:
+  command: "agent-test"
+  env:
+    SANDBOX_TEST_VAR: "expected-value"
+    SANDBOX_TEST_EMPTY: ""
+
+runtime:
+  access_host_libvirt: true
+  memory: "2G"
+  cpus: 2
+
+project:
+  workdir: /must-be-overridden
+  extra_syncs: []

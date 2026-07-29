@@ -1,0 +1,14 @@
+# Quickstart profile — a minimal, bootable sandbox using opencode.
+# Change project.workdir to your project path before running.
+name: opencode-quickstart
+
+image:
+  os: fedora
+  roles:
+    - agent-opencode
+
+agent:
+  command: "opencode --auto"
+
+project:
+  workdir: ~/my-project

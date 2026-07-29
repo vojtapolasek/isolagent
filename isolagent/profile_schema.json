@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["name", "image", "agent", "project"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "image": {
+      "type": "object",
+      "required": ["os"],
+      "additionalProperties": false,
+      "properties": {
+        "os": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["command"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "default": {},
+      "properties": {
+        "access_host_libvirt": {
+          "type": "boolean",
+          "default": false
+        },
+        "libvirt_uri": {
+          "type": "string"
+        },
+        "memory": {
+          "type": "string",
+          "default": "4G"
+        },
+        "cpus": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 4
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["workdir"],
+      "additionalProperties": false,
+      "properties": {
+        "workdir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extra_syncs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}

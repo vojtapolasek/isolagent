@@ -1,0 +1,8 @@
+---
+- name: Install Claude Code
+  ansible.builtin.shell:
+    cmd: "curl -fsSL https://claude.ai/install.sh | bash && cp $HOME/.local/bin/claude /usr/local/bin/claude && chmod 755 /usr/local/bin/claude"
+  environment:
+    HOME: /root
+  args:
+    creates: /usr/local/bin/claude

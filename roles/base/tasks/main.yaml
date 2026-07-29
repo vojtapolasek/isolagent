@@ -1,0 +1,50 @@
+---
+- name: Install infrastructure packages
+  ansible.builtin.package:
+    name:
+      - "{{ 'openssh-server' if ansible_os_family == 'RedHat' else 'openssh' }}"
+      - rsync
+      - socat
+      - tmux
+      - git
+      - jq
+    state: present
+
+- name: Enable sshd
+  ansible.builtin.systemd:
+    name: sshd
+    enabled: true
+
+- name: Remove build-time SSH config
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/00-isolagent-build.conf
+    state: absent
+
+- name: Configure sshd for passwordless access
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/01-isolagent.conf
+    content: |
+      PermitRootLogin yes
+      PasswordAuthentication yes
+      PermitEmptyPasswords yes
+      PerSourcePenalties no
+    mode: "0644"
+
+- name: Delete root password
+  ansible.builtin.command:
+    cmd: passwd -d root
+  changed_when: true
+
+- name: Restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+
+- name: Create isolagent directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /isolagent
+    - /isolagent/project

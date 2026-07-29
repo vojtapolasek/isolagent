@@ -1,0 +1,48 @@
+# Profile name — unique identifier used by `isolagent build` and `isolagent run`.
+name: reference
+
+image:
+  # Base operating system for the VM image.
+  # Must match a supported OS (e.g., "fedora", "archlinux").
+  os: fedora
+
+  # Ansible roles applied during image build.  (default: [])
+  # Roles are resolved from the profile's own roles/ directory first,
+  # then from the global roles/ directory.
+  roles:
+    - my-custom-role
+
+agent:
+  # Command that launches the AI agent inside the VM.
+  command: "claude --dangerously-skip-permissions"
+
+  # Environment variables passed to the agent process.  (default: {})
+  env:
+    ANTHROPIC_API_KEY: "unused"
+    ANTHROPIC_BASE_URL: "http://192.168.122.1:4000"
+    EDITOR: "/usr/bin/nano"
+    IS_SANDBOX: "1"
+
+runtime:
+  # Whether the VM can access the host's libvirt daemon.  (default: false)
+  # Enable this when the agent needs to manage VMs on the host.
+  access_host_libvirt: true
+
+  # libvirt connection URI used when access_host_libvirt is true.  (default: qemu:///system)
+  libvirt_uri: "qemu+tcp://192.168.122.1/system"
+
+  # RAM allocated to the VM (e.g., "4G", "8G").  (default: 4G)
+  memory: "8G"
+
+  # Number of virtual CPU cores assigned to the VM.  (default: 4)
+  cpus: 4
+
+project:
+  # Host directory synced into the VM as the agent's working directory.
+  # Tilde is expanded relative to the user running `isolagent run`.
+  workdir: ~/my-project
+
+  # Additional host paths synced into the VM (read-write).  (default: [])
+  # Useful for shared tooling, datasets, or configuration.
+  extra_syncs:
+    - ~/shared-configs

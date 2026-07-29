@@ -1,0 +1,8 @@
+model_list:
+  - model_name: local-model
+    litellm_params:
+      model: openai/your-model-name
+      api_base: http://127.0.0.1:8080
+
+general_settings:
+  drop_params: true

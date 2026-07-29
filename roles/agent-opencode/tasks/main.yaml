@@ -1,0 +1,8 @@
+---
+- name: Install Opencode
+  ansible.builtin.shell:
+    cmd: "curl -fsSL https://opencode.ai/install | bash && cp $HOME/.opencode/bin/opencode /usr/local/bin/opencode && chmod 755 /usr/local/bin/opencode"
+  environment:
+    HOME: /root
+  args:
+    creates: /usr/local/bin/opencode

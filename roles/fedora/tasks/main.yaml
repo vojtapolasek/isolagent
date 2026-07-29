@@ -1,0 +1,15 @@
+---
+# Fedora's pam_unix.so rejects empty passwords by default
+- name: Disable PAM for sshd
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config.d/01-isolagent.conf
+    line: "UsePAM no"
+
+- name: SELinux relabel
+  ansible.builtin.command:
+    cmd: fixfiles -T 0 restore
+  changed_when: true
+
+- name: Remove build-time NM connection profiles
+  ansible.builtin.shell: rm -f /etc/NetworkManager/system-connections/*.nmconnection
+  changed_when: true
