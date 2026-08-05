@@ -1,6 +1,10 @@
 import subprocess
 import sys
 
+import pytest
+
+integration = pytest.mark.integration
+
 
 def run_cli(*args):
     result = subprocess.run(
@@ -25,6 +29,7 @@ class TestSubcommandDispatch:
 
 
 class TestRunSubcommand:
+    @integration
     def test_run_with_profile_hits_preflight(self, tmp_path, monkeypatch):
         import yaml
 
@@ -225,6 +230,7 @@ class TestBuildSubcommand:
 
 
 class TestStubSubcommands:
+    @integration
     def test_list_stub(self, monkeypatch):
         from unittest.mock import MagicMock, patch
 
