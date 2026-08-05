@@ -464,10 +464,6 @@ class SessionRunner:
             self.initial_head = self._ssh_exec(
                 "cd /isolagent/project && git rev-parse HEAD"
             )
-            self._ssh_run(
-                "cd /isolagent/project && "
-                "git config core.hooksPath /dev/null"
-            )
 
     def _patch_format_cmd(self):
         return (
