@@ -1,5 +1,7 @@
 # isolagent
 
+[![CI](https://github.com/vojtapolasek/isolagent/actions/workflows/ci.yml/badge.svg)](https://github.com/vojtapolasek/isolagent/actions/workflows/ci.yml)
+
 > **Status:** Under heavy development. But I will try not to introduce breaking changes.
 
 Run fully autonomous LLM agents in isolated sandbox without being afraid that they will break your host.
