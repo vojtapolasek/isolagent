@@ -15,7 +15,8 @@ Host (Fedora / Arch Linux)
 │   ├── base/                 ← sandbox infrastructure (SSH, rsync, socat)
 │   ├── fedora/               ← OS-specific config + base image metadata
 │   ├── agent-claude/         ← Claude Code installation
-│   ├── agent-opencode/       ← OpenCode installation
+│   ├── agent-opencode/       ← OpenCode v1 installation
+│   ├── agent-opencode-v2/    ← OpenCode v2 installation
 │   ├── agent-test/           ← test agent installation
 │   └── libvirt-bridge/       ← vsock-to-TCP bridge service
 ├── profiles/<name>/
