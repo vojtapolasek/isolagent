@@ -94,6 +94,7 @@ Resource allocation and runtime behavior for the QEMU VM.
 | `libvirt_uri` | string | no | `qemu:///system` | Libvirt connection URI override. Can also be set via `ISOLAGENT_LIBVIRT_URI` env var |
 | `memory` | string | no | `"4G"` | Guest memory allocation (e.g., `"2G"`, `"8G"`) |
 | `cpus` | integer | no | `4` | Guest vCPU count. Minimum: 1 |
+| `disk` | string | no | `"20G"` | Session disk size: overlay virtual size and usable root filesystem. Positive integer with unit suffix `M`, `G`, or `T` (e.g., `"20G"`, `"512M"`, `"1T"`). Must be at least the base image's virtual size |
 
 ### project
 

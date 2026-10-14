@@ -12,6 +12,7 @@ _RUNTIME_DEFAULTS = {
     "access_host_libvirt": False,
     "memory": "4G",
     "cpus": 4,
+    "disk": "20G",
 }
 
 _AGENT_DEFAULTS = {
@@ -100,7 +101,6 @@ def validate_profile(profile):
         raise ProfileError(f"Profile validation error at '{field}': {e.message}") from e
 
 
-
 def discover_profiles(profiles_dir):
     profiles_dir = Path(profiles_dir)
     if not profiles_dir.is_dir():
@@ -136,13 +136,9 @@ def load_os_role_vars(os_name, roles_dir=None):
     roles_dir = Path(roles_dir) if roles_dir else _ROLES_DIR
     vars_file = roles_dir / os_name / "vars" / "main.yaml"
     if not vars_file.exists():
-        raise ProfileError(
-            f"OS role '{os_name}' not found: {vars_file} does not exist"
-        )
+        raise ProfileError(f"OS role '{os_name}' not found: {vars_file} does not exist")
     with open(vars_file) as f:
         data = yaml.safe_load(f)
     if not data or "base_image_url" not in data:
-        raise ProfileError(
-            f"OS role '{os_name}' vars missing required field 'base_image_url'"
-        )
+        raise ProfileError(f"OS role '{os_name}' vars missing required field 'base_image_url'")
     return data

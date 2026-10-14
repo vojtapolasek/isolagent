@@ -1,4 +1,4 @@
-## ADDED Requirements
+## Requirements
 
 ### Requirement: QEMU VM launch
 The VM launch is handled by `isolagent/session.py` using the libvirt Python API. The session module SHALL create a transient libvirt domain with a q35 machine, virtio-net on the `default` libvirt network, and `vhost-vsock-pci` with auto-assigned CID. The vsock device is always present in the domain XML regardless of whether `runtime.access_host_libvirt` is true. Memory and CPU count come from the profile's `runtime` section.
@@ -26,13 +26,25 @@ VM launch SHALL NOT require root or sudo. The user SHALL be a member of the `lib
 - **THEN** the VM starts successfully without any sudo prompts
 
 ### Requirement: Ephemeral overlay disk
-The overlay SHALL be created as a storage pool volume backed by the profile's base image volume. The overlay volume SHALL be deleted via `vol.delete()` during teardown.
+The overlay SHALL be created as a storage pool volume backed by the profile's base image volume. The overlay's virtual size SHALL be the resolved `runtime.disk` size (profile value or CLI override, default "20G"). If the resolved disk size is smaller than the base image volume's virtual size, session init SHALL fail with a `SessionError` stating the minimum allowed size, before the VM is started. The overlay volume SHALL be deleted via `vol.delete()` during teardown.
 
 #### Scenario: Clean slate per run
 - **WHEN** `isolagent run myprofile` launches a session
 - **THEN** a new overlay pool volume is created backed by `isolagent-myprofile`
 - **WHEN** the session ends
 - **THEN** the overlay volume is deleted from the pool
+
+#### Scenario: Overlay sized from profile
+- **WHEN** a session starts for a profile with `runtime.disk: "40G"`
+- **THEN** the overlay volume is created with a virtual size of 40 GiB
+
+#### Scenario: Disk size smaller than base image
+- **WHEN** a session starts with a resolved disk size smaller than the base image volume's virtual size
+- **THEN** session init fails with a `SessionError` naming the minimum size and no domain is created
+
+#### Scenario: Disk size equal to base image
+- **WHEN** a session starts with a resolved disk size equal to the base image volume's virtual size
+- **THEN** the overlay is created successfully and the guest's root filesystem remains at the base size
 
 ### Requirement: VM cleanup on exit
 The session module SHALL ensure the libvirt domain, host-side socat, overlay pool volume, and ephemeral files are cleaned up when the session ends, including on errors and signals. Domain cleanup SHALL use `domain.destroy()` directly.

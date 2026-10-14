@@ -23,13 +23,14 @@ isolagent run opencode-quickstart --shell
 Override profile defaults from the command line:
 
 ```shell
-isolagent run opencode-quickstart --output-mode patch --memory 8G --cpus 8
+isolagent run opencode-quickstart --output-mode patch --memory 8G --cpus 8 --disk 40G
 ```
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--memory` | string | `"4G"` | Guest memory (e.g., `8G`). Overrides `runtime.memory` |
 | `--cpus` | integer | `4` | Guest vCPUs. Overrides `runtime.cpus` |
+| `--disk` | string | `"20G"` | Disk size (e.g., `40G`; integer with unit `M`/`G`/`T`). Overrides `runtime.disk` |
 | `--output-dir` | string | same as `project.workdir` | Directory for patch/sync output (required for sync) |
 | `--overwrite` | flag | off | Allow sync into a non-empty output directory |
 
@@ -57,6 +58,16 @@ If any check fails, the error message tells you which setup step to run.
 3. A libvirt domain is defined and started with KVM, virbr0 networking, and a vsock device
 4. The session waits for libvirt's DHCP to assign an IP, then queries the lease to discover the guest IP
 5. If `runtime.access_host_libvirt` is `true`, a socat process bridges VSOCK to the host libvirt socket (using flock to prevent duplicate processes)
+
+### Disk Sizing
+
+The session overlay's virtual size comes from `runtime.disk` (default `"20G"`, overridable with `--disk`). On each session boot, cloud-init grows the root partition and filesystem into the full overlay size, so `df -h /` inside the guest reports the configured size (within filesystem overhead).
+
+Constraints:
+
+- The qcow2 overlay cannot be smaller than its backing image, so the resolved disk size must be at least the base image's virtual size. Session init checks this and fails with `Configured disk size '<value>' is smaller than the base image virtual size — set disk to at least <minimum>` before any volume or VM is created.
+- The base image ships at its upstream download size (~5 GiB for Fedora Cloud); growing the *build-time* disk beyond that is out of scope. Configuring more than ~5 GiB only takes effect at session boot via the guest-side growth, which is the intended path.
+- The overlay is sparse: host disk usage grows only with what the session writes, so a large configured size costs nothing while idle.
 
 ### SSH Wait
 

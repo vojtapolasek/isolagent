@@ -50,6 +50,21 @@ class TestSchemaValidation:
         with pytest.raises(ProfileError, match="cpus"):
             validate_profile(valid_profile)
 
+    def test_disk_valid_value(self, valid_profile):
+        valid_profile["runtime"]["disk"] = "40G"
+        validate_profile(valid_profile)
+        assert valid_profile["runtime"]["disk"] == "40G"
+
+    def test_disk_invalid_value_no_unit_rejected(self, valid_profile):
+        valid_profile["runtime"]["disk"] = "40"
+        with pytest.raises(ProfileError, match="disk"):
+            validate_profile(valid_profile)
+
+    def test_disk_invalid_value_non_numeric_rejected(self, valid_profile):
+        valid_profile["runtime"]["disk"] = "big"
+        with pytest.raises(ProfileError, match="disk"):
+            validate_profile(valid_profile)
+
     def test_libvirt_type_mismatch(self, valid_profile):
         valid_profile["runtime"]["access_host_libvirt"] = "yes"
         with pytest.raises(ProfileError, match="access_host_libvirt"):
@@ -159,6 +174,23 @@ class TestDefaults:
         assert profile["runtime"]["access_host_libvirt"] is False
         assert profile["runtime"]["memory"] == "4G"
         assert profile["runtime"]["cpus"] == 4
+
+    def test_disk_defaults_to_20g(self, profiles_dir):
+        from tests.conftest import _write_profile_dir
+
+        profile_data = {
+            "name": "disk-default",
+            "image": {
+                "os": "fedora",
+            },
+            "agent": {
+                "command": "echo run",
+            },
+            "project": {"workdir": "/tmp/project"},
+        }
+        _write_profile_dir(profiles_dir, "disk-default", profile_data)
+        profile = load_profile("disk-default", profiles_dir)
+        assert profile["runtime"]["disk"] == "20G"
 
     def test_omitted_optional_agent_fields_get_defaults(self, profiles_dir):
         from tests.conftest import _write_profile_dir

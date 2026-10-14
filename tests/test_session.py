@@ -13,6 +13,7 @@ from tests.conftest import VALID_PROFILE
 def _libvirt_available():
     try:
         import libvirt
+
         conn = libvirt.open("qemu:///system")
         conn.close()
         return True
@@ -26,9 +27,7 @@ def _iso_tool_available():
 
 integration = pytest.mark.integration
 
-requires_libvirt = pytest.mark.skipif(
-    not _libvirt_available(), reason="libvirtd not reachable"
-)
+requires_libvirt = pytest.mark.skipif(not _libvirt_available(), reason="libvirtd not reachable")
 
 requires_iso_tool = pytest.mark.skipif(
     not _iso_tool_available(), reason="no ISO tool (genisoimage/mkisofs/xorrisofs) in PATH"
@@ -141,7 +140,9 @@ class TestNewPreflight:
         subprocess.run(["git", "init", str(proj)], capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "--allow-empty", "-m", "init"],
-            capture_output=True, check=True, cwd=str(proj),
+            capture_output=True,
+            check=True,
+            cwd=str(proj),
         )
 
         mock_conn = MagicMock()
@@ -246,7 +247,9 @@ class TestPatchModeGitPreflight:
         subprocess.run(["git", "init", str(proj)], capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "--allow-empty", "-m", "init"],
-            capture_output=True, check=True, cwd=str(proj),
+            capture_output=True,
+            check=True,
+            cwd=str(proj),
         )
 
         mock_conn = MagicMock()
@@ -462,9 +465,7 @@ class TestAgentCommand:
         assert "claude --dangerously-skip-permissions" in cmd
         cd_pos = cmd.index("cd ")
         env_pos = cmd.index("env ")
-        assert cd_pos < env_pos, (
-            f"env must wrap agent command after cd, got: {cmd}"
-        )
+        assert cd_pos < env_pos, f"env must wrap agent command after cd, got: {cmd}"
 
     def test_agent_env_cmd_empty(self):
         from isolagent.session import SessionRunner
@@ -585,6 +586,19 @@ class TestCloudInitISO:
         assert "ssh_authorized_keys" not in user_data
         assert "PermitRootLogin" not in user_data
 
+    def test_user_data_requests_root_fs_growth(self):
+        import yaml
+
+        from isolagent.session import SessionRunner
+
+        profile = copy.deepcopy(VALID_PROFILE)
+        runner = SessionRunner(profile, output_mode="patch")
+        user_data = runner._cloud_init_user_data()
+
+        payload = yaml.safe_load(user_data)
+        assert payload["growpart"] == {"mode": "auto", "devices": ["/"]}
+        assert payload["resize_rootfs"] is True
+
 
 class TestSocatStart:
     def test_socat_cmd_for_libvirt(self):
@@ -647,7 +661,9 @@ class TestOutputExtraction:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="patch", output_dir="/tmp/out",
+            profile,
+            output_mode="patch",
+            output_dir="/tmp/out",
         )
         path = runner._patch_output_path()
         assert path.startswith("/tmp/out/")
@@ -668,7 +684,9 @@ class TestOutputExtraction:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync", output_dir="/tmp/out",
+            profile,
+            output_mode="sync",
+            output_dir="/tmp/out",
         )
         runner.guest_ip = "192.168.122.50"
         cmd = runner._sync_out_cmd()
@@ -689,7 +707,9 @@ class TestOutputExtraction:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync", output_dir="/tmp/other",
+            profile,
+            output_mode="sync",
+            output_dir="/tmp/other",
         )
         runner.guest_ip = "192.168.122.50"
         cmd = runner._sync_out_cmd()
@@ -739,7 +759,8 @@ class TestOutputDirPreflight:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="patch",
+            profile,
+            output_mode="patch",
             output_dir=str(tmp_path / "nonexistent"),
         )
 
@@ -762,7 +783,8 @@ class TestOutputDirPreflight:
         out_dir.mkdir()
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="patch",
+            profile,
+            output_mode="patch",
             output_dir=str(out_dir),
         )
 
@@ -787,8 +809,10 @@ class TestOutputDirPreflight:
         (out_dir / "existing.txt").write_text("data")
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
-            output_dir=str(out_dir), overwrite=False,
+            profile,
+            output_mode="sync",
+            output_dir=str(out_dir),
+            overwrite=False,
         )
 
         monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/genisoimage")
@@ -811,8 +835,10 @@ class TestOutputDirPreflight:
         (out_dir / "existing.txt").write_text("data")
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
-            output_dir=str(out_dir), overwrite=True,
+            profile,
+            output_mode="sync",
+            output_dir=str(out_dir),
+            overwrite=True,
         )
 
         monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/genisoimage")
@@ -833,8 +859,10 @@ class TestOutputDirPreflight:
         out_dir.mkdir()
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
-            output_dir=str(out_dir), overwrite=False,
+            profile,
+            output_mode="sync",
+            output_dir=str(out_dir),
+            overwrite=False,
         )
 
         monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/genisoimage")
@@ -853,7 +881,8 @@ class TestOutputDirPreflight:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
+            profile,
+            output_mode="sync",
             output_dir=None,
         )
 
@@ -893,6 +922,10 @@ class TestInitPhase:
                 return_value="isolagent-test-abc123",
             ),
             patch("isolagent.libvirt_helpers.create_overlay_volume"),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=5 * 1024**3,
+            ),
             patch("subprocess.run"),
         ):
             runner._start_socat_with_flock = fake_start_socat
@@ -923,12 +956,145 @@ class TestInitPhase:
                 return_value="isolagent-test-abc123",
             ),
             patch("isolagent.libvirt_helpers.create_overlay_volume"),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=5 * 1024**3,
+            ),
             patch("subprocess.run"),
         ):
             runner._start_socat_with_flock = fake_start_socat
             runner.init()
 
         assert len(socat_calls) == 0
+
+
+class TestInitDiskSizing:
+    def _run_init(self, disk, base_bytes, create_overlay_mock):
+        from isolagent.session import SessionRunner
+
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"]["disk"] = disk
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_overlay_mock,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=base_bytes,
+            ),
+            patch("subprocess.run"),
+        ):
+            runner.init()
+        return runner
+
+    def test_overlay_created_with_configured_capacity(self):
+        create_mock = MagicMock()
+        runner = self._run_init("40G", 5 * 1024**3, create_mock)
+        create_mock.assert_called_once_with(
+            runner.conn,
+            runner.overlay_vol_name,
+            "isolagent-test-profile",
+            40 * 1024**3,
+        )
+
+    def test_default_disk_capacity_when_unset(self):
+        from isolagent.session import SessionRunner
+
+        create_mock = MagicMock()
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"].pop("disk", None)
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_mock,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=5 * 1024**3,
+            ),
+            patch("subprocess.run"),
+        ):
+            runner.init()
+
+        assert create_mock.call_args[0][3] == 20 * 1024**3
+
+    def test_equal_size_succeeds(self):
+        create_mock = MagicMock()
+        self._run_init("20G", 20 * 1024**3, create_mock)
+        assert create_mock.call_count == 1
+
+    def test_too_small_disk_raises_before_volume_creation(self):
+        from isolagent.session import SessionError, SessionRunner
+
+        create_mock = MagicMock()
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"]["disk"] = "10G"
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_mock,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=20 * 1024**3,
+            ),
+            patch("subprocess.run"),
+            pytest.raises(SessionError, match="at least 20G"),
+        ):
+            runner.init()
+
+        create_mock.assert_not_called()
+
+    def test_invalid_disk_string_raises_session_error(self):
+        from isolagent.session import SessionError, SessionRunner
+
+        create_mock = MagicMock()
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"]["disk"] = "40"
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_mock,
+            ),
+            patch("subprocess.run"),
+            pytest.raises(SessionError, match="disk"),
+        ):
+            runner.init()
+
+        create_mock.assert_not_called()
 
 
 @integration
@@ -1118,9 +1284,7 @@ class TestTeardown:
         runner = SessionRunner(profile, output_mode="sync")
         monkeypatch.setattr(
             "isolagent.session.SessionRunner._extract_output",
-            lambda self: (_ for _ in ()).throw(
-                RuntimeError("disk full")
-            ),
+            lambda self: (_ for _ in ()).throw(RuntimeError("disk full")),
         )
         runner.teardown()
         captured = capsys.readouterr()
@@ -1172,7 +1336,7 @@ class TestTeardownIntegration:
         conn = get_libvirt_connection()
         try:
             self._create_dummy_volume(conn, base_name)
-            create_overlay_volume(conn, overlay_name, base_name)
+            create_overlay_volume(conn, overlay_name, base_name, 1024 * 1024 * 1024)
             assert volume_exists(conn, overlay_name)
 
             runner = SessionRunner(profile, output_mode="none")
@@ -1229,7 +1393,11 @@ class TestCmdRunWiring:
             cmd_run(args)
 
         assert calls == [
-            "preflight", "init", "setup", "run", "teardown",
+            "preflight",
+            "init",
+            "setup",
+            "run",
+            "teardown",
         ]
 
     def test_cmd_run_teardown_on_error(self, monkeypatch):
@@ -1424,9 +1592,7 @@ class TestCmdList:
 </domain>
 """
         mock_domain1.interfaceAddresses.return_value = {
-            "vnet0": {
-                "addrs": [{"type": 0, "addr": "192.168.122.50"}]
-            }
+            "vnet0": {"addrs": [{"type": 0, "addr": "192.168.122.50"}]}
         }
 
         mock_conn.listAllDomains.return_value = [mock_domain1]

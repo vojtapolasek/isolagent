@@ -47,9 +47,7 @@ class TestRunSubcommand:
         }
         profile_dir = profiles_dir / "test-profile"
         profile_dir.mkdir()
-        (profile_dir / "profile.yaml").write_text(
-            yaml.dump(profile_data)
-        )
+        (profile_dir / "profile.yaml").write_text(yaml.dump(profile_data))
 
         result = subprocess.run(
             [
@@ -90,9 +88,7 @@ class TestRunSubcommand:
         }
         profile_dir = profiles_dir / "test-profile"
         profile_dir.mkdir()
-        (profile_dir / "profile.yaml").write_text(
-            yaml.dump(profile_data)
-        )
+        (profile_dir / "profile.yaml").write_text(yaml.dump(profile_data))
 
         result = subprocess.run(
             [
@@ -129,9 +125,7 @@ class TestRunSubcommand:
         }
         profile_dir = profiles_dir / "test-profile"
         profile_dir.mkdir()
-        (profile_dir / "profile.yaml").write_text(
-            yaml.dump(profile_data)
-        )
+        (profile_dir / "profile.yaml").write_text(yaml.dump(profile_data))
 
         result = subprocess.run(
             [
@@ -170,6 +164,36 @@ class TestRunSubcommand:
         )
         assert result.returncode != 0
         assert "nonexistent" in result.stderr
+
+
+class TestDiskOverride:
+    def _parse(self, extra_args):
+        from isolagent.cli import build_parser
+
+        return build_parser().parse_args(
+            ["run", "test-profile", "--output-mode", "patch", *extra_args]
+        )
+
+    def test_disk_override_sets_runtime_disk(self):
+        from isolagent.cli import _apply_overrides
+
+        profile = {"runtime": {"memory": "4G", "cpus": 4, "disk": "20G"}}
+        args = self._parse(["--disk", "40G"])
+        _apply_overrides(profile, args)
+        assert profile["runtime"]["disk"] == "40G"
+
+    def test_no_disk_flag_keeps_profile_value(self):
+        from isolagent.cli import _apply_overrides
+
+        profile = {"runtime": {"memory": "4G", "cpus": 4, "disk": "20G"}}
+        args = self._parse([])
+        _apply_overrides(profile, args)
+        assert profile["runtime"]["disk"] == "20G"
+
+    def test_run_help_shows_disk_flag(self):
+        result = run_cli("run", "--help")
+        assert result.returncode == 0
+        assert "--disk" in result.stdout
 
 
 class TestBuildSubcommand:

@@ -16,16 +16,14 @@ def _apply_overrides(profile, args):
         profile["runtime"]["memory"] = args.memory
     if getattr(args, "cpus", None):
         profile["runtime"]["cpus"] = args.cpus
+    if getattr(args, "disk", None):
+        profile["runtime"]["disk"] = args.disk
 
 
 def cmd_run(args):
     import signal
 
-    profiles_dir = (
-        Path(args.profiles_dir)
-        if args.profiles_dir
-        else _default_profiles_dir()
-    )
+    profiles_dir = Path(args.profiles_dir) if args.profiles_dir else _default_profiles_dir()
     try:
         profile = load_profile(args.profile, profiles_dir)
     except ProfileError as e:
@@ -127,25 +125,29 @@ def cmd_list(args):
         guest_ip = "pending"
         try:
             import libvirt
-            ifaces = domain.interfaceAddresses(
-                libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
-            )
+
+            ifaces = domain.interfaceAddresses(libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE)
             for _iface, data in ifaces.items():
                 for addr in data.get("addrs", []):
-                    if (
-                        addr["type"] == libvirt.VIR_IP_ADDR_TYPE_IPV4
-                        and not addr["addr"].startswith("127.")
-                    ):
-                            guest_ip = addr["addr"]
-                            break
+                    if addr["type"] == libvirt.VIR_IP_ADDR_TYPE_IPV4 and not addr[
+                        "addr"
+                    ].startswith("127."):
+                        guest_ip = addr["addr"]
+                        break
                 if guest_ip != "pending":
                     break
         except Exception:
             pass
 
         state_names = {
-            0: "nostate", 1: "running", 2: "blocked", 3: "paused",
-            4: "shutdown", 5: "shutoff", 6: "crashed", 7: "suspended",
+            0: "nostate",
+            1: "running",
+            2: "blocked",
+            3: "paused",
+            4: "shutdown",
+            5: "shutoff",
+            6: "crashed",
+            7: "suspended",
         }
         try:
             state_num, _ = domain.state()
@@ -155,10 +157,7 @@ def cmd_list(args):
 
         rows.append((name, profile_name, guest_ip, state))
 
-    widths = [
-        max(len(h), *(len(r[i]) for r in rows))
-        for i, h in enumerate(headers)
-    ]
+    widths = [max(len(h), *(len(r[i]) for r in rows)) for i, h in enumerate(headers)]
     fmt = "  ".join(f"{{:<{w}}}" for w in widths)
     print(fmt.format(*headers))
     print(fmt.format(*("-" * w for w in widths)))
@@ -180,6 +179,10 @@ def build_parser():
     run_parser.add_argument("--profiles-dir", help="Path to profiles directory")
     run_parser.add_argument("--memory", help="Override guest memory (e.g. 8G)")
     run_parser.add_argument("--cpus", type=int, help="Override guest vCPUs")
+    run_parser.add_argument(
+        "--disk",
+        help="Override guest disk size (e.g. 40G). Format: positive integer with unit M/G/T",
+    )
     run_parser.add_argument(
         "--output-mode",
         choices=["patch", "sync", "none"],
@@ -218,6 +221,7 @@ def main():
     # before Python can catch the exception; Python libvirtError carries the
     # same message, so no diagnostic information is lost.
     import libvirt
+
     libvirt.registerErrorHandler(lambda _ctx, _err: None, None)
 
     parser = build_parser()

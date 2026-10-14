@@ -31,14 +31,13 @@ PROJECT_ROOT = Path(__file__).parent.parent
 requires_ansible = pytest.mark.skipif(
     not shutil.which("ansible-playbook"), reason="ansible-playbook not in PATH"
 )
-requires_kvm = pytest.mark.skipif(
-    not os.path.exists("/dev/kvm"), reason="/dev/kvm not available"
-)
+requires_kvm = pytest.mark.skipif(not os.path.exists("/dev/kvm"), reason="/dev/kvm not available")
 
 
 def _libvirt_available():
     try:
         import libvirt
+
         conn = libvirt.open("qemu:///system")
         conn.close()
         return True
@@ -46,13 +45,9 @@ def _libvirt_available():
         return False
 
 
-requires_libvirt = pytest.mark.skipif(
-    not _libvirt_available(), reason="libvirtd not reachable"
-)
+requires_libvirt = pytest.mark.skipif(not _libvirt_available(), reason="libvirtd not reachable")
 
-requires_socat = pytest.mark.skipif(
-    not shutil.which("socat"), reason="socat not available"
-)
+requires_socat = pytest.mark.skipif(not shutil.which("socat"), reason="socat not available")
 
 integration = pytest.mark.integration
 
@@ -86,9 +81,13 @@ def built_test_image(integration_prerequisites, tmp_path_factory):
 
     result = subprocess.run(
         [
-            sys.executable, "-m", "isolagent.cli",
-            "build", "test",
-            "--profiles-dir", str(profiles_dir),
+            sys.executable,
+            "-m",
+            "isolagent.cli",
+            "build",
+            "test",
+            "--profiles-dir",
+            str(profiles_dir),
             "--force",
         ],
         capture_output=True,
@@ -101,6 +100,7 @@ def built_test_image(integration_prerequisites, tmp_path_factory):
     )
 
     from isolagent.libvirt_helpers import get_libvirt_connection, volume_exists
+
     conn = get_libvirt_connection()
     assert volume_exists(conn, "isolagent-test"), "Build did not create isolagent-test volume"
     conn.close()
@@ -108,6 +108,7 @@ def built_test_image(integration_prerequisites, tmp_path_factory):
     yield profiles_dir
 
     from isolagent.libvirt_helpers import delete_volume
+
     conn = get_libvirt_connection()
     delete_volume(conn, "isolagent-test")
     conn.close()
@@ -122,17 +123,20 @@ def session_env(built_test_image, tmp_path):
     subprocess.run(["git", "init", str(workdir)], capture_output=True, check=True)
     subprocess.run(
         ["git", "-C", str(workdir), "config", "user.email", "test@test.com"],
-        capture_output=True, check=True,
+        capture_output=True,
+        check=True,
     )
     subprocess.run(
         ["git", "-C", str(workdir), "config", "user.name", "Test"],
-        capture_output=True, check=True,
+        capture_output=True,
+        check=True,
     )
     (workdir / "README.md").write_text("test project\n")
     subprocess.run(["git", "-C", str(workdir), "add", "."], capture_output=True, check=True)
     subprocess.run(
         ["git", "-C", str(workdir), "commit", "-m", "init"],
-        capture_output=True, check=True,
+        capture_output=True,
+        check=True,
     )
 
     extra_sync_dir = tmp_path / "extra-test"
@@ -159,6 +163,7 @@ def session_env(built_test_image, tmp_path):
 class TestBuildAndBoot:
     def test_build_produces_volume(self, built_test_image):
         from isolagent.libvirt_helpers import get_libvirt_connection, volume_exists
+
         conn = get_libvirt_connection()
         assert volume_exists(conn, "isolagent-test")
         conn.close()
@@ -177,7 +182,9 @@ class TestOutputModes:
         profile["runtime"]["access_host_libvirt"] = False
 
         runner = SessionRunner(
-            profile, output_mode="patch", output_dir=str(output_dir),
+            profile,
+            output_mode="patch",
+            output_dir=str(output_dir),
         )
 
         runner.preflight()
@@ -207,7 +214,9 @@ class TestOutputModes:
         profile["runtime"]["access_host_libvirt"] = False
 
         runner = SessionRunner(
-            profile, output_mode="sync", output_dir=str(output_dir),
+            profile,
+            output_mode="sync",
+            output_dir=str(output_dir),
         )
 
         runner.preflight()
@@ -235,7 +244,8 @@ class TestOutputModes:
         output_dir = tmp_path / "output"
 
         runner = SessionRunner(
-            profile, output_mode="none",
+            profile,
+            output_mode="none",
         )
 
         runner.preflight()
@@ -268,17 +278,20 @@ class TestTeardown:
         subprocess.run(["git", "init", str(workdir)], capture_output=True, check=True)
         subprocess.run(
             ["git", "-C", str(workdir), "config", "user.email", "test@test.com"],
-            capture_output=True, check=True,
+            capture_output=True,
+            check=True,
         )
         subprocess.run(
             ["git", "-C", str(workdir), "config", "user.name", "Test"],
-            capture_output=True, check=True,
+            capture_output=True,
+            check=True,
         )
         (workdir / "README.md").write_text("test\n")
         subprocess.run(["git", "-C", str(workdir), "add", "."], capture_output=True, check=True)
         subprocess.run(
             ["git", "-C", str(workdir), "commit", "-m", "init"],
-            capture_output=True, check=True,
+            capture_output=True,
+            check=True,
         )
 
         profile = load_profile("test", profiles_dir)
@@ -301,6 +314,7 @@ class TestTeardown:
         runner.teardown()
 
         from isolagent.libvirt_helpers import get_libvirt_connection, volume_exists
+
         conn = get_libvirt_connection()
 
         try:
@@ -326,7 +340,8 @@ class TestLibvirtSession:
         profile["runtime"]["access_host_libvirt"] = True
 
         runner = SessionRunner(
-            profile, output_mode="none",
+            profile,
+            output_mode="none",
         )
 
         runner.preflight()
@@ -349,3 +364,44 @@ class TestLibvirtSession:
         )
 
         assert runner.socat_lock_fd is None, "socat lock fd not released after teardown"
+
+
+@integration
+@requires_ansible
+@requires_kvm
+@requires_libvirt
+class TestDiskSizing:
+    def test_root_fs_grows_to_configured_disk(self, session_env):
+        """Guards the overlay-capacity + growpart + btrfs resize chain.
+
+        Equivalent of `isolagent run test --output-mode none --disk 8G`:
+        the resolved runtime.disk must size the overlay and the guest root
+        filesystem must grow into it.
+        """
+        profile = copy.deepcopy(session_env["profile"])
+        profile["runtime"]["access_host_libvirt"] = False
+        profile["runtime"]["disk"] = "8G"
+        profile["agent"]["command"] = "echo done"
+
+        runner = SessionRunner(profile, output_mode="none")
+
+        runner.preflight()
+        try:
+            runner.init()
+            runner.setup()
+            runner.run()
+
+            result = subprocess.run(
+                runner._ssh_cmd_base() + ["df", "-B1", "--output=size", "/"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        finally:
+            runner.teardown()
+
+        assert result.returncode == 0, f"df failed: {result.stderr}"
+        size_bytes = int(result.stdout.strip().splitlines()[-1])
+        assert size_bytes >= 7 * 1024**3, (
+            f"Root filesystem is {size_bytes / 1024**3:.2f} GiB, expected >= 7 GiB with --disk 8G"
+        )
