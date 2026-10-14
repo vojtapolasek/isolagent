@@ -108,16 +108,14 @@ def upload_volume(conn, name, local_path, capacity_bytes):
     stream.finish()
 
 
-def create_overlay_volume(conn, name, backing_vol_name):
+def create_overlay_volume(conn, name, backing_vol_name, capacity_bytes):
     """
     Create a new qcow2 volume backed by another volume.
 
-    The overlay has a capacity of at least 20G.
+    The overlay's virtual capacity is set to capacity_bytes.
     """
     pool = get_default_pool(conn)
     backing_path = get_volume_path(conn, backing_vol_name)
-
-    capacity_bytes = 20 * 1024 * 1024 * 1024
 
     vol_xml = f"""
 <volume>
@@ -146,6 +144,36 @@ def delete_volume(conn, name):
         pass
 
 
+def get_volume_virtual_size(conn, name):
+    """
+    Get a volume's real virtual size in bytes.
+
+    Refreshes the storage pool first so libvirt re-probes volume backing
+    files — the declared capacity of uploaded volumes reflects the allocated
+    file size, not the qcow2 virtual disk size. Reads capacity from the
+    volume XML because vol.info() is unreliable in some libvirt Python
+    bindings (no virStorageVol.refresh, malformed info() tuples). Raises
+    SessionError if probing fails or the reported capacity is zero.
+    """
+    pool = get_default_pool(conn)
+    try:
+        pool.refresh(0)
+        vol = pool.storageVolLookupByName(name)
+        vol_xml = ET.fromstring(vol.XMLDesc(0))
+        capacity_elem = vol_xml.find("capacity")
+        capacity = int(capacity_elem.text) if capacity_elem is not None else 0
+    except (libvirt.libvirtError, ValueError, ET.ParseError) as e:
+        raise SessionError(f"Could not determine virtual size of volume '{name}': {e}") from e
+
+    if not capacity:
+        raise SessionError(
+            f"Volume '{name}' reports zero virtual size — the backing image "
+            "may be corrupt or unreadable"
+        )
+
+    return capacity
+
+
 def check_default_network(conn):
     """
     Verify the 'default' network is active.
@@ -163,18 +191,26 @@ def check_default_network(conn):
         raise SessionError("libvirt default network is not active — run: virsh net-start default")
 
 
-def _parse_memory(memory_str):
-    """Parse memory string like '4G' or '512M' to (value, unit) for libvirt XML."""
-    memory_str = memory_str.strip().upper()
+_SIZE_UNITS = {"M": "MiB", "G": "GiB", "T": "TiB"}
+_UNIT_BYTES = {"MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
 
-    if memory_str.endswith("G"):
-        value = int(memory_str[:-1])
-        return value, "GiB"
-    elif memory_str.endswith("M"):
-        value = int(memory_str[:-1])
-        return value, "MiB"
-    else:
-        raise ValueError(f"Invalid memory format: {memory_str}")
+
+def parse_size(size_str):
+    """Parse size string like '4G', '512M' or '1T' to (value, unit) for libvirt XML."""
+    normalized = size_str.strip().upper()
+
+    if len(normalized) >= 2 and normalized[-1] in _SIZE_UNITS:
+        value_part = normalized[:-1]
+        if value_part.isdigit():
+            return int(value_part), _SIZE_UNITS[normalized[-1]]
+
+    raise ValueError(f"Invalid size format: {size_str}")
+
+
+def parse_size_bytes(size_str):
+    """Parse size string like '20G' to an integer number of bytes."""
+    value, unit = parse_size(size_str)
+    return value * _UNIT_BYTES[unit]
 
 
 def generate_domain_xml(
@@ -186,7 +222,7 @@ def generate_domain_xml(
     Includes: q35 machine, KVM, virtio disk + sata cdrom, virtio-net on default network,
     vhost-vsock with auto CID, serial console, and profile metadata.
     """
-    mem_value, mem_unit = _parse_memory(memory)
+    mem_value, mem_unit = parse_size(memory)
 
     xml = f"""
 <domain type='kvm'>

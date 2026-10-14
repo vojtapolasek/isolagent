@@ -79,6 +79,7 @@ Integration tests have two sub-tiers:
 | `TestBuildAndBoot` | `test_integration.py` | Image build produces a libvirt volume |
 | `TestOutputModes` | `test_integration.py` | Session lifecycle in patch/sync/none modes |
 | `TestTeardown` | `test_integration.py` | Domain and overlay cleanup after a real session |
+| `TestDiskSizing` | `test_integration.py` | Configured disk size reaches the guest root filesystem (growpart/resize chain) |
 | `TestLibvirtSession` | `test_integration.py` | Host libvirt access via vsock bridge |
 
 Tests auto-skip when prerequisites are missing. A skipped test means the prerequisite is unavailable, not that the test is broken.

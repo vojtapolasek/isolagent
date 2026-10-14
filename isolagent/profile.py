@@ -12,6 +12,7 @@ _RUNTIME_DEFAULTS = {
     "access_host_libvirt": False,
     "memory": "4G",
     "cpus": 4,
+    "disk": "20G",
 }
 
 _AGENT_DEFAULTS = {

@@ -219,6 +219,177 @@ class TestDomainXMLGeneration:
         assert type_elem.get("machine") == "q35"
 
 
+class TestParseSize:
+    def test_parses_gigabytes(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        assert parse_size("4G") == (4, "GiB")
+
+    def test_parses_megabytes(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        assert parse_size("512M") == (512, "MiB")
+
+    def test_parses_terabytes(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        assert parse_size("1T") == (1, "TiB")
+
+    def test_strips_whitespace_and_lowercase(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        assert parse_size(" 8g ") == (8, "GiB")
+
+    def test_rejects_missing_unit(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        with pytest.raises(ValueError, match="Invalid size format"):
+            parse_size("40")
+
+    def test_rejects_non_numeric(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        with pytest.raises(ValueError, match="Invalid size format"):
+            parse_size("big")
+
+    def test_rejects_non_numeric_with_unit(self):
+        from isolagent.libvirt_helpers import parse_size
+
+        with pytest.raises(ValueError, match="Invalid size format"):
+            parse_size("abcG")
+
+
+class TestParseSizeBytes:
+    def test_gigabytes_to_bytes(self):
+        from isolagent.libvirt_helpers import parse_size_bytes
+
+        assert parse_size_bytes("20G") == 20 * 1024**3
+
+    def test_megabytes_to_bytes(self):
+        from isolagent.libvirt_helpers import parse_size_bytes
+
+        assert parse_size_bytes("512M") == 512 * 1024**2
+
+    def test_terabytes_to_bytes(self):
+        from isolagent.libvirt_helpers import parse_size_bytes
+
+        assert parse_size_bytes("1T") == 1024**4
+
+    def test_malformed_raises(self):
+        from isolagent.libvirt_helpers import parse_size_bytes
+
+        with pytest.raises(ValueError, match="Invalid size format"):
+            parse_size_bytes("40")
+
+
+class TestCreateOverlayVolume:
+    def _capture_vol_xml(self, capacity_bytes):
+        from isolagent.libvirt_helpers import create_overlay_volume
+
+        mock_conn = MagicMock()
+        mock_pool = MagicMock()
+        with (
+            patch(
+                "isolagent.libvirt_helpers.get_default_pool",
+                return_value=mock_pool,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_path",
+                return_value="/var/lib/libvirt/images/base.qcow2",
+            ),
+        ):
+            create_overlay_volume(mock_conn, "ov", "base", capacity_bytes)
+        vol_xml = mock_pool.createXML.call_args[0][0]
+        return ET.fromstring(vol_xml)
+
+    def test_volume_xml_uses_given_capacity(self):
+        root = self._capture_vol_xml(40 * 1024**3)
+        capacity = root.find("capacity")
+        assert capacity.get("unit") == "bytes"
+        assert capacity.text == str(40 * 1024**3)
+
+    def test_volume_xml_keeps_backing_store(self):
+        root = self._capture_vol_xml(20 * 1024**3)
+        backing = root.find(".//backingStore/path")
+        assert backing.text == "/var/lib/libvirt/images/base.qcow2"
+
+
+class TestGetVolumeVirtualSize:
+    def _mock_vol(self, xml_capacity):
+        mock_pool = MagicMock()
+        mock_vol = MagicMock()
+        mock_vol.XMLDesc.return_value = (
+            f"<volume><name>base</name><capacity unit='bytes'>{xml_capacity}</capacity></volume>"
+        )
+        mock_pool.storageVolLookupByName.return_value = mock_vol
+        return mock_pool, mock_vol
+
+    def test_refreshes_pool_and_returns_capacity(self):
+        from isolagent.libvirt_helpers import get_volume_virtual_size
+
+        mock_conn = MagicMock()
+        mock_pool, mock_vol = self._mock_vol(5 * 1024**3)
+        with patch(
+            "isolagent.libvirt_helpers.get_default_pool",
+            return_value=mock_pool,
+        ):
+            size = get_volume_virtual_size(mock_conn, "base")
+
+        mock_pool.refresh.assert_called_once_with(0)
+        assert size == 5 * 1024**3
+
+    def test_zero_capacity_raises(self):
+        from isolagent.libvirt_helpers import get_volume_virtual_size
+        from isolagent.session import SessionError
+
+        mock_conn = MagicMock()
+        mock_pool, _ = self._mock_vol(0)
+        with (
+            patch(
+                "isolagent.libvirt_helpers.get_default_pool",
+                return_value=mock_pool,
+            ),
+            pytest.raises(SessionError, match="base"),
+        ):
+            get_volume_virtual_size(mock_conn, "base")
+
+    def test_libvirt_error_raises(self):
+        import libvirt
+
+        from isolagent.libvirt_helpers import get_volume_virtual_size
+        from isolagent.session import SessionError
+
+        mock_conn = MagicMock()
+        mock_pool = MagicMock()
+        mock_pool.refresh.side_effect = libvirt.libvirtError("probe failed")
+        with (
+            patch(
+                "isolagent.libvirt_helpers.get_default_pool",
+                return_value=mock_pool,
+            ),
+            pytest.raises(SessionError, match="base"),
+        ):
+            get_volume_virtual_size(mock_conn, "base")
+
+    def test_missing_capacity_raises(self):
+        from isolagent.libvirt_helpers import get_volume_virtual_size
+        from isolagent.session import SessionError
+
+        mock_conn = MagicMock()
+        mock_pool = MagicMock()
+        mock_vol = MagicMock()
+        mock_vol.XMLDesc.return_value = "<volume><name>base</name></volume>"
+        mock_pool.storageVolLookupByName.return_value = mock_vol
+        with (
+            patch(
+                "isolagent.libvirt_helpers.get_default_pool",
+                return_value=mock_pool,
+            ),
+            pytest.raises(SessionError, match="base"),
+        ):
+            get_volume_virtual_size(mock_conn, "base")
+
+
 class TestDomainNameGeneration:
     def test_returns_correct_format(self):
         from isolagent.libvirt_helpers import generate_domain_name
@@ -463,7 +634,7 @@ class TestStoragePoolVolumeManagement:
         conn = get_libvirt_connection()
         try:
             self._create_dummy_volume(conn, base_name)
-            create_overlay_volume(conn, overlay_name, base_name)
+            create_overlay_volume(conn, overlay_name, base_name, 1024 * 1024 * 1024)
             assert volume_exists(conn, overlay_name) is True
 
             pool = conn.storagePoolLookupByName("default")

@@ -16,6 +16,8 @@ def _apply_overrides(profile, args):
         profile["runtime"]["memory"] = args.memory
     if getattr(args, "cpus", None):
         profile["runtime"]["cpus"] = args.cpus
+    if getattr(args, "disk", None):
+        profile["runtime"]["disk"] = args.disk
 
 
 def cmd_run(args):
@@ -177,6 +179,10 @@ def build_parser():
     run_parser.add_argument("--profiles-dir", help="Path to profiles directory")
     run_parser.add_argument("--memory", help="Override guest memory (e.g. 8G)")
     run_parser.add_argument("--cpus", type=int, help="Override guest vCPUs")
+    run_parser.add_argument(
+        "--disk",
+        help="Override guest disk size (e.g. 40G). Format: positive integer with unit M/G/T",
+    )
     run_parser.add_argument(
         "--output-mode",
         choices=["patch", "sync", "none"],

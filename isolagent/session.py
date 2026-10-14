@@ -218,7 +218,10 @@ class SessionRunner:
 
     def _cloud_init_user_data(self):
         return (
-            "#cloud-config\ndisable_root: false\nusers:\n  - name: root\n    lock_passwd: false\n"
+            "#cloud-config\ndisable_root: false\n"
+            'growpart:\n  mode: auto\n  devices: ["/"]\n'
+            "resize_rootfs: true\n"
+            "users:\n  - name: root\n    lock_passwd: false\n"
         )
 
     def _iso_cmd(self, cidata_dir, iso_path):
@@ -363,16 +366,40 @@ class SessionRunner:
         from isolagent.libvirt_helpers import (
             create_overlay_volume,
             generate_domain_name,
+            get_volume_virtual_size,
+            parse_size_bytes,
         )
 
         self.domain_name = generate_domain_name(self.profile["name"])
 
         base_vol_name = f"isolagent-{self.profile['name']}"
+        disk_str = self.profile.get("runtime", {}).get("disk", "20G")
+        try:
+            capacity_bytes = parse_size_bytes(disk_str)
+        except ValueError as e:
+            raise SessionError(
+                f"Invalid disk size '{disk_str}': {e}. "
+                "Expected a positive integer with unit M, G, or T (e.g. '20G')"
+            ) from e
+
+        base_size_bytes = get_volume_virtual_size(self.conn, base_vol_name)
+        if capacity_bytes < base_size_bytes:
+            min_str = (
+                f"{base_size_bytes // 1024**3}G"
+                if base_size_bytes % 1024**3 == 0
+                else f"{base_size_bytes} bytes"
+            )
+            raise SessionError(
+                f"Configured disk size '{disk_str}' is smaller than the base "
+                f"image virtual size — set disk to at least {min_str}"
+            )
+
         self.overlay_vol_name = f"{self.domain_name}-overlay"
         create_overlay_volume(
             self.conn,
             self.overlay_vol_name,
             base_vol_name,
+            capacity_bytes,
         )
 
         self.cidata_dir = Path(f"/tmp/isolagent-{self.domain_name}-cidata")

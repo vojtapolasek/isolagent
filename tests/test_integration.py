@@ -364,3 +364,44 @@ class TestLibvirtSession:
         )
 
         assert runner.socat_lock_fd is None, "socat lock fd not released after teardown"
+
+
+@integration
+@requires_ansible
+@requires_kvm
+@requires_libvirt
+class TestDiskSizing:
+    def test_root_fs_grows_to_configured_disk(self, session_env):
+        """Guards the overlay-capacity + growpart + btrfs resize chain.
+
+        Equivalent of `isolagent run test --output-mode none --disk 8G`:
+        the resolved runtime.disk must size the overlay and the guest root
+        filesystem must grow into it.
+        """
+        profile = copy.deepcopy(session_env["profile"])
+        profile["runtime"]["access_host_libvirt"] = False
+        profile["runtime"]["disk"] = "8G"
+        profile["agent"]["command"] = "echo done"
+
+        runner = SessionRunner(profile, output_mode="none")
+
+        runner.preflight()
+        try:
+            runner.init()
+            runner.setup()
+            runner.run()
+
+            result = subprocess.run(
+                runner._ssh_cmd_base() + ["df", "-B1", "--output=size", "/"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        finally:
+            runner.teardown()
+
+        assert result.returncode == 0, f"df failed: {result.stderr}"
+        size_bytes = int(result.stdout.strip().splitlines()[-1])
+        assert size_bytes >= 7 * 1024**3, (
+            f"Root filesystem is {size_bytes / 1024**3:.2f} GiB, expected >= 7 GiB with --disk 8G"
+        )

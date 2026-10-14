@@ -586,6 +586,19 @@ class TestCloudInitISO:
         assert "ssh_authorized_keys" not in user_data
         assert "PermitRootLogin" not in user_data
 
+    def test_user_data_requests_root_fs_growth(self):
+        import yaml
+
+        from isolagent.session import SessionRunner
+
+        profile = copy.deepcopy(VALID_PROFILE)
+        runner = SessionRunner(profile, output_mode="patch")
+        user_data = runner._cloud_init_user_data()
+
+        payload = yaml.safe_load(user_data)
+        assert payload["growpart"] == {"mode": "auto", "devices": ["/"]}
+        assert payload["resize_rootfs"] is True
+
 
 class TestSocatStart:
     def test_socat_cmd_for_libvirt(self):
@@ -909,6 +922,10 @@ class TestInitPhase:
                 return_value="isolagent-test-abc123",
             ),
             patch("isolagent.libvirt_helpers.create_overlay_volume"),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=5 * 1024**3,
+            ),
             patch("subprocess.run"),
         ):
             runner._start_socat_with_flock = fake_start_socat
@@ -939,12 +956,145 @@ class TestInitPhase:
                 return_value="isolagent-test-abc123",
             ),
             patch("isolagent.libvirt_helpers.create_overlay_volume"),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=5 * 1024**3,
+            ),
             patch("subprocess.run"),
         ):
             runner._start_socat_with_flock = fake_start_socat
             runner.init()
 
         assert len(socat_calls) == 0
+
+
+class TestInitDiskSizing:
+    def _run_init(self, disk, base_bytes, create_overlay_mock):
+        from isolagent.session import SessionRunner
+
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"]["disk"] = disk
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_overlay_mock,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=base_bytes,
+            ),
+            patch("subprocess.run"),
+        ):
+            runner.init()
+        return runner
+
+    def test_overlay_created_with_configured_capacity(self):
+        create_mock = MagicMock()
+        runner = self._run_init("40G", 5 * 1024**3, create_mock)
+        create_mock.assert_called_once_with(
+            runner.conn,
+            runner.overlay_vol_name,
+            "isolagent-test-profile",
+            40 * 1024**3,
+        )
+
+    def test_default_disk_capacity_when_unset(self):
+        from isolagent.session import SessionRunner
+
+        create_mock = MagicMock()
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"].pop("disk", None)
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_mock,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=5 * 1024**3,
+            ),
+            patch("subprocess.run"),
+        ):
+            runner.init()
+
+        assert create_mock.call_args[0][3] == 20 * 1024**3
+
+    def test_equal_size_succeeds(self):
+        create_mock = MagicMock()
+        self._run_init("20G", 20 * 1024**3, create_mock)
+        assert create_mock.call_count == 1
+
+    def test_too_small_disk_raises_before_volume_creation(self):
+        from isolagent.session import SessionError, SessionRunner
+
+        create_mock = MagicMock()
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"]["disk"] = "10G"
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_mock,
+            ),
+            patch(
+                "isolagent.libvirt_helpers.get_volume_virtual_size",
+                return_value=20 * 1024**3,
+            ),
+            patch("subprocess.run"),
+            pytest.raises(SessionError, match="at least 20G"),
+        ):
+            runner.init()
+
+        create_mock.assert_not_called()
+
+    def test_invalid_disk_string_raises_session_error(self):
+        from isolagent.session import SessionError, SessionRunner
+
+        create_mock = MagicMock()
+        profile = copy.deepcopy(VALID_PROFILE)
+        profile["runtime"]["disk"] = "40"
+        runner = SessionRunner(profile, output_mode="patch")
+        runner.iso_tool = "genisoimage"
+        runner.conn = MagicMock()
+
+        with (
+            patch(
+                "isolagent.libvirt_helpers.generate_domain_name",
+                return_value="isolagent-test-abc123",
+            ),
+            patch(
+                "isolagent.libvirt_helpers.create_overlay_volume",
+                create_mock,
+            ),
+            patch("subprocess.run"),
+            pytest.raises(SessionError, match="disk"),
+        ):
+            runner.init()
+
+        create_mock.assert_not_called()
 
 
 @integration
@@ -1186,7 +1336,7 @@ class TestTeardownIntegration:
         conn = get_libvirt_connection()
         try:
             self._create_dummy_volume(conn, base_name)
-            create_overlay_volume(conn, overlay_name, base_name)
+            create_overlay_volume(conn, overlay_name, base_name, 1024 * 1024 * 1024)
             assert volume_exists(conn, overlay_name)
 
             runner = SessionRunner(profile, output_mode="none")

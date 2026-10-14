@@ -37,6 +37,11 @@ runtime:
   # Number of virtual CPU cores assigned to the VM.  (default: 4)
   cpus: 4
 
+  # Usable disk size for the session VM (overlay disk and grown root filesystem).
+  # Positive integer with unit suffix M, G, or T (e.g., "20G", "512M", "1T").
+  # Must be at least the base image's virtual size.  (default: 20G)
+  disk: "20G"
+
 project:
   # Host directory synced into the VM as the agent's working directory.
   # Tilde is expanded relative to the user running `isolagent run`.
