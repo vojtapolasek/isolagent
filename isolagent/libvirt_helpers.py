@@ -97,7 +97,8 @@ def upload_volume(conn, name, local_path, capacity_bytes):
     stream = conn.newStream(0)
     vol.upload(stream, 0, capacity_bytes, 0)
 
-    with open(local_path, 'rb') as f:
+    with open(local_path, "rb") as f:
+
         def send_data(stream, nbytes, opaque):
             data = f.read(nbytes)
             return data
@@ -159,9 +160,7 @@ def check_default_network(conn):
         ) from e
 
     if not network.isActive():
-        raise SessionError(
-            "libvirt default network is not active — run: virsh net-start default"
-        )
+        raise SessionError("libvirt default network is not active — run: virsh net-start default")
 
 
 def _parse_memory(memory_str):
@@ -178,8 +177,9 @@ def _parse_memory(memory_str):
         raise ValueError(f"Invalid memory format: {memory_str}")
 
 
-def generate_domain_xml(name, memory, cpus, disk_path, cloud_init_iso_path,
-                       console_log_path, profile_name):
+def generate_domain_xml(
+    name, memory, cpus, disk_path, cloud_init_iso_path, console_log_path, profile_name
+):
     """
     Returns a valid libvirt domain XML string.
 
@@ -254,7 +254,7 @@ def generate_domain_name(profile_name):
     """
     import re
 
-    if not re.match(r'^[a-zA-Z0-9_-]+$', profile_name):
+    if not re.match(r"^[a-zA-Z0-9_-]+$", profile_name):
         raise ValueError(
             f"Invalid profile name '{profile_name}': "
             "only alphanumeric, hyphen, and underscore allowed"
@@ -276,18 +276,16 @@ def discover_guest_ip(domain, conn):
 
     while time.time() < deadline:
         try:
-            ifaces = domain.interfaceAddresses(
-                libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
-            )
+            ifaces = domain.interfaceAddresses(libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE)
 
             for _iface_name, iface_data in ifaces.items():
-                if not iface_data or 'addrs' not in iface_data:
+                if not iface_data or "addrs" not in iface_data:
                     continue
 
-                for addr in iface_data['addrs']:
-                    if addr['type'] == libvirt.VIR_IP_ADDR_TYPE_IPV4:
-                        ip = addr['addr']
-                        if not ip.startswith('127.'):
+                for addr in iface_data["addrs"]:
+                    if addr["type"] == libvirt.VIR_IP_ADDR_TYPE_IPV4:
+                        ip = addr["addr"]
+                        if not ip.startswith("127."):
                             return ip
         except libvirt.libvirtError:
             pass
@@ -298,15 +296,15 @@ def discover_guest_ip(domain, conn):
 
             mac_elem = root.find(".//interface[@type='network']/mac")
             if mac_elem is not None:
-                mac = mac_elem.get('address')
+                mac = mac_elem.get("address")
 
-                network = conn.networkLookupByName('default')
+                network = conn.networkLookupByName("default")
                 leases = network.DHCPLeases(mac, 0)
 
                 for lease in leases:
-                    if lease['type'] == libvirt.VIR_IP_ADDR_TYPE_IPV4:
-                        ip = lease['ipaddr']
-                        if not ip.startswith('127.'):
+                    if lease["type"] == libvirt.VIR_IP_ADDR_TYPE_IPV4:
+                        ip = lease["ipaddr"]
+                        if not ip.startswith("127."):
                             return ip
         except (libvirt.libvirtError, ET.ParseError):
             pass

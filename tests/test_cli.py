@@ -47,9 +47,7 @@ class TestRunSubcommand:
         }
         profile_dir = profiles_dir / "test-profile"
         profile_dir.mkdir()
-        (profile_dir / "profile.yaml").write_text(
-            yaml.dump(profile_data)
-        )
+        (profile_dir / "profile.yaml").write_text(yaml.dump(profile_data))
 
         result = subprocess.run(
             [
@@ -90,9 +88,7 @@ class TestRunSubcommand:
         }
         profile_dir = profiles_dir / "test-profile"
         profile_dir.mkdir()
-        (profile_dir / "profile.yaml").write_text(
-            yaml.dump(profile_data)
-        )
+        (profile_dir / "profile.yaml").write_text(yaml.dump(profile_data))
 
         result = subprocess.run(
             [
@@ -129,9 +125,7 @@ class TestRunSubcommand:
         }
         profile_dir = profiles_dir / "test-profile"
         profile_dir.mkdir()
-        (profile_dir / "profile.yaml").write_text(
-            yaml.dump(profile_data)
-        )
+        (profile_dir / "profile.yaml").write_text(yaml.dump(profile_data))
 
         result = subprocess.run(
             [

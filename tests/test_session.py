@@ -13,6 +13,7 @@ from tests.conftest import VALID_PROFILE
 def _libvirt_available():
     try:
         import libvirt
+
         conn = libvirt.open("qemu:///system")
         conn.close()
         return True
@@ -26,9 +27,7 @@ def _iso_tool_available():
 
 integration = pytest.mark.integration
 
-requires_libvirt = pytest.mark.skipif(
-    not _libvirt_available(), reason="libvirtd not reachable"
-)
+requires_libvirt = pytest.mark.skipif(not _libvirt_available(), reason="libvirtd not reachable")
 
 requires_iso_tool = pytest.mark.skipif(
     not _iso_tool_available(), reason="no ISO tool (genisoimage/mkisofs/xorrisofs) in PATH"
@@ -141,7 +140,9 @@ class TestNewPreflight:
         subprocess.run(["git", "init", str(proj)], capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "--allow-empty", "-m", "init"],
-            capture_output=True, check=True, cwd=str(proj),
+            capture_output=True,
+            check=True,
+            cwd=str(proj),
         )
 
         mock_conn = MagicMock()
@@ -246,7 +247,9 @@ class TestPatchModeGitPreflight:
         subprocess.run(["git", "init", str(proj)], capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "--allow-empty", "-m", "init"],
-            capture_output=True, check=True, cwd=str(proj),
+            capture_output=True,
+            check=True,
+            cwd=str(proj),
         )
 
         mock_conn = MagicMock()
@@ -462,9 +465,7 @@ class TestAgentCommand:
         assert "claude --dangerously-skip-permissions" in cmd
         cd_pos = cmd.index("cd ")
         env_pos = cmd.index("env ")
-        assert cd_pos < env_pos, (
-            f"env must wrap agent command after cd, got: {cmd}"
-        )
+        assert cd_pos < env_pos, f"env must wrap agent command after cd, got: {cmd}"
 
     def test_agent_env_cmd_empty(self):
         from isolagent.session import SessionRunner
@@ -647,7 +648,9 @@ class TestOutputExtraction:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="patch", output_dir="/tmp/out",
+            profile,
+            output_mode="patch",
+            output_dir="/tmp/out",
         )
         path = runner._patch_output_path()
         assert path.startswith("/tmp/out/")
@@ -668,7 +671,9 @@ class TestOutputExtraction:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync", output_dir="/tmp/out",
+            profile,
+            output_mode="sync",
+            output_dir="/tmp/out",
         )
         runner.guest_ip = "192.168.122.50"
         cmd = runner._sync_out_cmd()
@@ -689,7 +694,9 @@ class TestOutputExtraction:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync", output_dir="/tmp/other",
+            profile,
+            output_mode="sync",
+            output_dir="/tmp/other",
         )
         runner.guest_ip = "192.168.122.50"
         cmd = runner._sync_out_cmd()
@@ -739,7 +746,8 @@ class TestOutputDirPreflight:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="patch",
+            profile,
+            output_mode="patch",
             output_dir=str(tmp_path / "nonexistent"),
         )
 
@@ -762,7 +770,8 @@ class TestOutputDirPreflight:
         out_dir.mkdir()
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="patch",
+            profile,
+            output_mode="patch",
             output_dir=str(out_dir),
         )
 
@@ -787,8 +796,10 @@ class TestOutputDirPreflight:
         (out_dir / "existing.txt").write_text("data")
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
-            output_dir=str(out_dir), overwrite=False,
+            profile,
+            output_mode="sync",
+            output_dir=str(out_dir),
+            overwrite=False,
         )
 
         monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/genisoimage")
@@ -811,8 +822,10 @@ class TestOutputDirPreflight:
         (out_dir / "existing.txt").write_text("data")
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
-            output_dir=str(out_dir), overwrite=True,
+            profile,
+            output_mode="sync",
+            output_dir=str(out_dir),
+            overwrite=True,
         )
 
         monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/genisoimage")
@@ -833,8 +846,10 @@ class TestOutputDirPreflight:
         out_dir.mkdir()
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
-            output_dir=str(out_dir), overwrite=False,
+            profile,
+            output_mode="sync",
+            output_dir=str(out_dir),
+            overwrite=False,
         )
 
         monkeypatch.setattr("shutil.which", lambda cmd: "/usr/bin/genisoimage")
@@ -853,7 +868,8 @@ class TestOutputDirPreflight:
 
         profile = copy.deepcopy(VALID_PROFILE)
         runner = SessionRunner(
-            profile, output_mode="sync",
+            profile,
+            output_mode="sync",
             output_dir=None,
         )
 
@@ -1118,9 +1134,7 @@ class TestTeardown:
         runner = SessionRunner(profile, output_mode="sync")
         monkeypatch.setattr(
             "isolagent.session.SessionRunner._extract_output",
-            lambda self: (_ for _ in ()).throw(
-                RuntimeError("disk full")
-            ),
+            lambda self: (_ for _ in ()).throw(RuntimeError("disk full")),
         )
         runner.teardown()
         captured = capsys.readouterr()
@@ -1229,7 +1243,11 @@ class TestCmdRunWiring:
             cmd_run(args)
 
         assert calls == [
-            "preflight", "init", "setup", "run", "teardown",
+            "preflight",
+            "init",
+            "setup",
+            "run",
+            "teardown",
         ]
 
     def test_cmd_run_teardown_on_error(self, monkeypatch):
@@ -1424,9 +1442,7 @@ class TestCmdList:
 </domain>
 """
         mock_domain1.interfaceAddresses.return_value = {
-            "vnet0": {
-                "addrs": [{"type": 0, "addr": "192.168.122.50"}]
-            }
+            "vnet0": {"addrs": [{"type": 0, "addr": "192.168.122.50"}]}
         }
 
         mock_conn.listAllDomains.return_value = [mock_domain1]

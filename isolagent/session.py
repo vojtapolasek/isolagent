@@ -28,9 +28,7 @@ def wait_for_ssh(ssh_cmd_base, timeout=60, interval=1):
         if result.returncode == 0:
             return
         time.sleep(interval)
-    raise SessionError(
-        f"SSH did not become available within {timeout} seconds"
-    )
+    raise SessionError(f"SSH did not become available within {timeout} seconds")
 
 
 class SessionError(Exception):
@@ -38,8 +36,7 @@ class SessionError(Exception):
 
 
 class SessionRunner:
-    def __init__(self, profile, output_mode=None, output_dir=None,
-                 overwrite=False, shell=False):
+    def __init__(self, profile, output_mode=None, output_dir=None, overwrite=False, shell=False):
         self.profile = profile
         self.output_mode = output_mode
         self.output_dir = output_dir
@@ -96,42 +93,41 @@ class SessionRunner:
     def _check_output_dir(self):
         if not os.path.isdir(self.output_dir):
             raise SessionError(
-                f"{self.output_dir} does not exist"
-                f" — create it with: mkdir -p {self.output_dir}"
+                f"{self.output_dir} does not exist — create it with: mkdir -p {self.output_dir}"
             )
         if not os.access(self.output_dir, os.W_OK):
-            raise SessionError(
-                f"{self.output_dir} is not writable"
-            )
+            raise SessionError(f"{self.output_dir} is not writable")
         if (
             self.output_mode == "sync"
             and not self.overwrite
             and any(Path(self.output_dir).iterdir())
         ):
-                raise SessionError(
-                    f"{self.output_dir} is not empty"
-                    " — use --overwrite to sync into a non-empty directory"
-                )
+            raise SessionError(
+                f"{self.output_dir} is not empty"
+                " — use --overwrite to sync into a non-empty directory"
+            )
 
     def _check_patch_mode_git(self):
         workdir = self.profile["project"]["workdir"]
         if not os.path.isdir(workdir):
             raise SessionError(
-                f"{workdir} does not exist"
-                " — --output-mode patch requires a valid workdir"
+                f"{workdir} does not exist — --output-mode patch requires a valid workdir"
             )
         result = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
-            capture_output=True, text=True, cwd=workdir,
+            capture_output=True,
+            text=True,
+            cwd=workdir,
         )
         if result.returncode != 0:
             raise SessionError(
-                f"{workdir} is not a git repository"
-                " — --output-mode patch requires a git repo"
+                f"{workdir} is not a git repository — --output-mode patch requires a git repo"
             )
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            capture_output=True, text=True, cwd=workdir,
+            capture_output=True,
+            text=True,
+            cwd=workdir,
         )
         if result.returncode != 0:
             raise SessionError(
@@ -154,10 +150,14 @@ class SessionRunner:
     def _ssh_cmd_base(self):
         return [
             "ssh",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "IdentitiesOnly=yes",
-            "-o", "LogLevel=ERROR",
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "UserKnownHostsFile=/dev/null",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            "LogLevel=ERROR",
             f"root@{self.guest_ip}",
         ]
 
@@ -172,17 +172,28 @@ class SessionRunner:
         return result.stdout.strip()
 
     def _rsync_cmd(self, src, dest):
-        ssh_cmd = " ".join([
-            "ssh",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "IdentitiesOnly=yes",
-            "-o", "LogLevel=ERROR",
-        ])
+        ssh_cmd = " ".join(
+            [
+                "ssh",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                "-o",
+                "IdentitiesOnly=yes",
+                "-o",
+                "LogLevel=ERROR",
+            ]
+        )
         return [
-            "rsync", "-az", "--delete", "--chown=root:root",
-            "-e", ssh_cmd,
-            src, dest,
+            "rsync",
+            "-az",
+            "--delete",
+            "--chown=root:root",
+            "-e",
+            ssh_cmd,
+            src,
+            dest,
         ]
 
     def _rsync(self, src, dest):
@@ -198,31 +209,27 @@ class SessionRunner:
             "  ethernets:\n"
             "    all-en:\n"
             "      match:\n"
-            "        name: \"en*\"\n"
+            '        name: "en*"\n'
             "      dhcp4: true\n"
         )
 
     def _cloud_init_meta_data(self):
-        return (
-            f"instance-id: isolagent-{self.domain_name}\n"
-            "local-hostname: isolagent\n"
-        )
+        return f"instance-id: isolagent-{self.domain_name}\nlocal-hostname: isolagent\n"
 
     def _cloud_init_user_data(self):
         return (
-            "#cloud-config\n"
-            "disable_root: false\n"
-            "users:\n"
-            "  - name: root\n"
-            "    lock_passwd: false\n"
+            "#cloud-config\ndisable_root: false\nusers:\n  - name: root\n    lock_passwd: false\n"
         )
 
     def _iso_cmd(self, cidata_dir, iso_path):
         return [
             self.iso_tool,
-            "-output", iso_path,
-            "-volid", "cidata",
-            "-joliet", "-rock",
+            "-output",
+            iso_path,
+            "-volid",
+            "cidata",
+            "-joliet",
+            "-rock",
             cidata_dir + "/",
         ]
 
@@ -234,9 +241,7 @@ class SessionRunner:
         guest_dest = f"root@{self.guest_ip}:/isolagent/project/"
         cmds.append(self._rsync_cmd(workdir, guest_dest))
 
-        for path in self.profile.get("project", {}).get(
-            "extra_syncs", []
-        ):
+        for path in self.profile.get("project", {}).get("extra_syncs", []):
             basename = Path(path).name
             src = path if path.endswith("/") else path + "/"
             dest = f"root@{self.guest_ip}:/isolagent/{basename}/"
@@ -254,19 +259,19 @@ class SessionRunner:
                 continue
             rel = host_path.relative_to(guest_files_dir)
             guest_path = f"/{rel}"
-            commands.append({
-                "guest_path": guest_path,
-                "host_path": str(host_path),
-            })
+            commands.append(
+                {
+                    "guest_path": guest_path,
+                    "host_path": str(host_path),
+                }
+            )
         return commands
 
     def _env_prefix(self):
         env = self.profile.get("agent", {}).get("env", {})
         if not env:
             return ""
-        env_pairs = " ".join(
-            f"{k}={shlex.quote(v)}" for k, v in env.items()
-        )
+        env_pairs = " ".join(f"{k}={shlex.quote(v)}" for k, v in env.items())
         return f"env {env_pairs} "
 
     def _agent_tmux_cmd(self):
@@ -284,10 +289,7 @@ class SessionRunner:
         ]
 
     def _socat_dir(self):
-        return (
-            Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
-            / "isolagent"
-        )
+        return Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "isolagent"
 
     def _start_socat_with_flock(self, timeout=10):
         socat_dir = self._socat_dir()
@@ -368,7 +370,9 @@ class SessionRunner:
         base_vol_name = f"isolagent-{self.profile['name']}"
         self.overlay_vol_name = f"{self.domain_name}-overlay"
         create_overlay_volume(
-            self.conn, self.overlay_vol_name, base_vol_name,
+            self.conn,
+            self.overlay_vol_name,
+            base_vol_name,
         )
 
         self.cidata_dir = Path(f"/tmp/isolagent-{self.domain_name}-cidata")
@@ -376,22 +380,18 @@ class SessionRunner:
         if self.cidata_dir.exists():
             shutil.rmtree(self.cidata_dir)
         self.cidata_dir.mkdir(parents=True)
-        (self.cidata_dir / "meta-data").write_text(
-            self._cloud_init_meta_data()
-        )
-        (self.cidata_dir / "user-data").write_text(
-            self._cloud_init_user_data()
-        )
-        (self.cidata_dir / "network-config").write_text(
-            self._cloud_init_network_config()
-        )
+        (self.cidata_dir / "meta-data").write_text(self._cloud_init_meta_data())
+        (self.cidata_dir / "user-data").write_text(self._cloud_init_user_data())
+        (self.cidata_dir / "network-config").write_text(self._cloud_init_network_config())
         subprocess.run(
             self._iso_cmd(str(self.cidata_dir), str(self.cidata_iso)),
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
         access_host_libvirt = self.profile.get("runtime", {}).get(
-            "access_host_libvirt", False,
+            "access_host_libvirt",
+            False,
         )
         if access_host_libvirt:
             self._start_socat_with_flock()
@@ -439,40 +439,39 @@ class SessionRunner:
             self._ssh_exec(f"mkdir -p {guest_dir}")
             scp_cmd = [
                 "scp",
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "IdentitiesOnly=yes",
-                "-o", "LogLevel=ERROR",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                "-o",
+                "IdentitiesOnly=yes",
+                "-o",
+                "LogLevel=ERROR",
                 gf["host_path"],
                 f"root@{self.guest_ip}:{gf['guest_path']}",
             ]
             result = subprocess.run(
-                scp_cmd, capture_output=True, text=True,
+                scp_cmd,
+                capture_output=True,
+                text=True,
             )
             if result.returncode != 0:
                 raise SessionError(
-                    f"File upload failed: {gf['host_path']} -> "
-                    f"{gf['guest_path']}: {result.stderr}"
+                    f"File upload failed: {gf['host_path']} -> {gf['guest_path']}: {result.stderr}"
                 )
 
         if self.profile.get("runtime", {}).get("access_host_libvirt", False):
-            self._ssh_exec(
-                "systemctl start vsock-libvirt-bridge"
-            )
+            self._ssh_exec("systemctl start vsock-libvirt-bridge")
 
         if self.output_mode == "patch":
-            self.initial_head = self._ssh_exec(
-                "cd /isolagent/project && git rev-parse HEAD"
-            )
+            self.initial_head = self._ssh_exec("cd /isolagent/project && git rev-parse HEAD")
 
     def _patch_format_cmd(self):
-        return (
-            f"cd /isolagent/project && "
-            f"git format-patch {self.initial_head} --stdout"
-        )
+        return f"cd /isolagent/project && git format-patch {self.initial_head} --stdout"
 
     def _patch_output_path(self):
         import time as _time
+
         output_dir = self.output_dir or self.profile["project"]["workdir"]
         timestamp = _time.strftime("%Y-%m-%d-%H%M%S")
         return f"{output_dir}/isolagent-{timestamp}.patch"
@@ -482,16 +481,25 @@ class SessionRunner:
         if not output_dir.endswith("/"):
             output_dir += "/"
 
-        ssh_cmd = " ".join([
-            "ssh",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "IdentitiesOnly=yes",
-            "-o", "LogLevel=ERROR",
-        ])
+        ssh_cmd = " ".join(
+            [
+                "ssh",
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "UserKnownHostsFile=/dev/null",
+                "-o",
+                "IdentitiesOnly=yes",
+                "-o",
+                "LogLevel=ERROR",
+            ]
+        )
         cmd = [
-            "rsync", "-az", "--delete",
-            "-e", ssh_cmd,
+            "rsync",
+            "-az",
+            "--delete",
+            "-e",
+            ssh_cmd,
             f"root@{self.guest_ip}:/isolagent/project/",
             output_dir,
         ]
@@ -507,9 +515,7 @@ class SessionRunner:
 
         reachable = self._ssh_run("true").returncode == 0
         if not reachable:
-            print(
-                "Warning: VM unreachable, skipping output extraction"
-            )
+            print("Warning: VM unreachable, skipping output extraction")
             return
 
         if self.output_mode == "patch":
@@ -518,19 +524,12 @@ class SessionRunner:
             self._extract_sync()
 
     def _extract_patch(self):
-        uncommitted = self._ssh_run(
-            "cd /isolagent/project && git status --porcelain"
-        )
+        uncommitted = self._ssh_run("cd /isolagent/project && git status --porcelain")
         if uncommitted.stdout.strip():
-            print(
-                "Warning: Uncommitted changes in guest "
-                "(not included in patch):"
-            )
+            print("Warning: Uncommitted changes in guest (not included in patch):")
             print(uncommitted.stdout)
 
-        current_head = self._ssh_run(
-            "cd /isolagent/project && git rev-parse HEAD"
-        ).stdout.strip()
+        current_head = self._ssh_run("cd /isolagent/project && git rev-parse HEAD").stdout.strip()
 
         if current_head == self.initial_head:
             print("No commits made by agent")
@@ -541,14 +540,8 @@ class SessionRunner:
         if result.returncode == 0 and result.stdout:
             Path(patch_path).write_text(result.stdout)
             print(f"Patch saved: {patch_path}")
-            output_dir = (
-                self.output_dir
-                or self.profile["project"]["workdir"]
-            )
-            print(
-                f"  Apply with: cd {output_dir} && "
-                f"git am {Path(patch_path).name}"
-            )
+            output_dir = self.output_dir or self.profile["project"]["workdir"]
+            print(f"  Apply with: cd {output_dir} && git am {Path(patch_path).name}")
 
     def _extract_sync(self):
         cmd = self._sync_out_cmd()
@@ -556,31 +549,27 @@ class SessionRunner:
         if result.returncode != 0:
             print(f"Warning: sync-out failed: {result.stderr}")
         else:
-            output_dir = (
-                self.output_dir
-                or self.profile["project"]["workdir"]
-            )
+            output_dir = self.output_dir or self.profile["project"]["workdir"]
             print(f"Synced output to: {output_dir}")
 
     def run(self):
         if self.shell:
             subprocess.run(
-                self._ssh_cmd_base()
-                + ["-t", self._shell_cmd()],
+                self._ssh_cmd_base() + ["-t", self._shell_cmd()],
             )
             return
 
         agent_cmd = self._agent_tmux_cmd()
-        self._ssh_exec(
-            f"tmux new-session -d -s isolagent '{agent_cmd}'"
-        )
+        self._ssh_exec(f"tmux new-session -d -s isolagent '{agent_cmd}'")
 
         max_failures = 10
         consecutive_failures = 0
         while consecutive_failures < max_failures:
             check = subprocess.run(
-                self._ssh_cmd_base() + [
-                    "-o", "ConnectTimeout=5",
+                self._ssh_cmd_base()
+                + [
+                    "-o",
+                    "ConnectTimeout=5",
                     "tmux has-session -t isolagent",
                 ],
                 capture_output=True,
@@ -590,19 +579,16 @@ class SessionRunner:
                     break
                 consecutive_failures += 1
                 if consecutive_failures >= max_failures:
-                    print(
-                        "Warning: Lost connection to VM after "
-                        f"{max_failures} attempts"
-                    )
+                    print(f"Warning: Lost connection to VM after {max_failures} attempts")
                     break
                 import time
+
                 time.sleep(2)
                 continue
 
             consecutive_failures = 0
             subprocess.run(
-                self._ssh_cmd_base()
-                + ["-t", "tmux attach-session -t isolagent"],
+                self._ssh_cmd_base() + ["-t", "tmux attach-session -t isolagent"],
             )
 
     def teardown(self):
@@ -610,6 +596,7 @@ class SessionRunner:
             self._extract_output()
         except Exception as exc:
             import sys as _sys
+
             print(
                 f"Warning: output extraction failed: {exc}",
                 file=_sys.stderr,
@@ -618,15 +605,18 @@ class SessionRunner:
         if self.domain is not None:
             with contextlib.suppress(Exception):
                 from isolagent.libvirt_helpers import destroy_domain
+
                 destroy_domain(self.domain)
 
         if self.overlay_vol_name is not None and self.conn is not None:
             with contextlib.suppress(Exception):
                 from isolagent.libvirt_helpers import delete_volume
+
                 delete_volume(self.conn, self.overlay_vol_name)
 
         access_host_libvirt = self.profile.get("runtime", {}).get(
-            "access_host_libvirt", False,
+            "access_host_libvirt",
+            False,
         )
         if access_host_libvirt:
             with contextlib.suppress(Exception):

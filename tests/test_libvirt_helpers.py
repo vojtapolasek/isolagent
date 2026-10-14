@@ -8,6 +8,7 @@ import pytest
 def _libvirt_available():
     try:
         import libvirt
+
         conn = libvirt.open("qemu:///system")
         conn.close()
         return True
@@ -17,13 +18,9 @@ def _libvirt_available():
 
 integration = pytest.mark.integration
 
-requires_kvm = pytest.mark.skipif(
-    not os.path.exists("/dev/kvm"), reason="/dev/kvm not available"
-)
+requires_kvm = pytest.mark.skipif(not os.path.exists("/dev/kvm"), reason="/dev/kvm not available")
 
-requires_libvirt = pytest.mark.skipif(
-    not _libvirt_available(), reason="libvirtd not reachable"
-)
+requires_libvirt = pytest.mark.skipif(not _libvirt_available(), reason="libvirtd not reachable")
 
 
 class TestDomainXMLGeneration:
@@ -268,11 +265,7 @@ class TestDHCPLeaseDiscovery:
         mock_conn = MagicMock()
 
         mock_domain.interfaceAddresses.return_value = {
-            "vnet0": {
-                "addrs": [
-                    {"type": libvirt.VIR_IP_ADDR_TYPE_IPV4, "addr": "192.168.122.50"}
-                ]
-            }
+            "vnet0": {"addrs": [{"type": libvirt.VIR_IP_ADDR_TYPE_IPV4, "addr": "192.168.122.50"}]}
         }
 
         monkeypatch.setattr("time.sleep", lambda s: None)
@@ -354,9 +347,7 @@ class TestCmdListViaLibvirt:
 </domain>
 """
         mock_domain1.interfaceAddresses.return_value = {
-            "vnet0": {
-                "addrs": [{"type": libvirt.VIR_IP_ADDR_TYPE_IPV4, "addr": "192.168.122.50"}]
-            }
+            "vnet0": {"addrs": [{"type": libvirt.VIR_IP_ADDR_TYPE_IPV4, "addr": "192.168.122.50"}]}
         }
 
         mock_domain2 = MagicMock()
@@ -370,9 +361,7 @@ class TestCmdListViaLibvirt:
 </domain>
 """
         mock_domain2.interfaceAddresses.return_value = {
-            "vnet1": {
-                "addrs": [{"type": libvirt.VIR_IP_ADDR_TYPE_IPV4, "addr": "192.168.122.51"}]
-            }
+            "vnet1": {"addrs": [{"type": libvirt.VIR_IP_ADDR_TYPE_IPV4, "addr": "192.168.122.51"}]}
         }
 
         mock_conn.listAllDomains.return_value = [mock_domain1, mock_domain2]
